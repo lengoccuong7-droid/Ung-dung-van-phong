@@ -3,27 +3,25 @@ import pandas as pd
 import numpy as np
 import io
 import os
+from openpyxl.styles import Alignment
 
 # -----------------------------------------------------------------------------
 # CẤU HÌNH THÔNG TIN ỨNG DỤNG
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Công Cụ Chuyển Đổi Dữ Liệu Copy & Văn Phòng", 
+    page_title="Công Cụ Chuyển Đổi Dữ Liệu Tự Động Căn Giữa & Co Giãn", 
     layout="wide", 
     page_icon="📋",
     initial_sidebar_state="expanded"
 )
 
-st.title("📋 Siêu Công Cụ Xử Lý Dữ Liệu: Từ Text Copy Đến File Microsoft Excel / CSV")
-st.caption("Hỗ trợ dán trực tiếp dữ liệu copy từ web, tự động bóc tách cột, quy đổi chữ M/K sang số thực & xuất file chuẩn 100%")
+st.title("📋 Siêu Công Cụ Xử Lý Dữ Liệu: Tự Động Căn Giữa, Co Giãn Cột & Xuất File")
+st.caption("Dán dữ liệu copy từ web, tự động bóc tách cột, quy đổi đơn vị M/K, tự động căn giữa ô, co giãn kích thước & xuất file Microsoft Excel/CSV")
 
 # -----------------------------------------------------------------------------
 # HÀM BÓC TÁCH DỮ LIỆU COPY TRỰC TIẾP TỪ WEB/MẠNG
 # -----------------------------------------------------------------------------
 def parse_copied_text(text_data):
-    """
-    Tự động phân tích các dòng text copy từ web (dạng Ngày, Giá Mở, Cao, Thấp, Đóng, Khối lượng có chữ M/K)
-    """
     lines = text_data.strip().split('\n')
     parsed_rows = []
     
@@ -37,7 +35,6 @@ def parse_copied_text(text_data):
                 low_p = float(parts[3].replace(',', ''))
                 close_p = float(parts[4].replace(',', ''))
                 
-                # Xử lý cột khối lượng có chứa chữ M hoặc K
                 vol_str = parts[5].upper().replace(',', '')
                 vol = 0.0
                 if 'M' in vol_str:
@@ -61,7 +58,7 @@ def parse_copied_text(text_data):
     return pd.DataFrame(parsed_rows)
 
 # -----------------------------------------------------------------------------
-# GIAO DIỆN THANH BÊN (SIDEBAR) - LỰA CHỌN PHƯƠNG THỨC NẠP DỮ LIỆU
+# GIAO DIỆN THANH BÊN (SIDEBAR)
 # -----------------------------------------------------------------------------
 st.sidebar.header("⚙️ Phương Thức Nhập Dữ Liệu")
 input_method = st.sidebar.radio(
@@ -102,12 +99,12 @@ else:
                 df_result = pd.read_csv(file_bytes)
             else:
                 df_result = pd.read_excel(file_bytes, engine='openpyxl')
-            st.success(f"✅ Đã nạp thành công tệp: **{uploaded_file.name}**")
+            st.success(f"✅ Đã nạp thành công tệp: {uploaded_file.name}")
         except Exception as e:
             st.error(f"❌ Lỗi đọc tệp: {e}")
 
 # =============================================================================
-# HIỂN THỊ KẾT QUẢ & XUẤT FILE MICROSOFT EXCEL / CSV
+# HIỂN THỊ KẾT QUẢ & XUẤT FILE TỰ ĐỘNG CĂN GIỮA & CO GIÃN CỘT
 # =============================================================================
 if df_result is not None and not df_result.empty:
     st.markdown("---")
@@ -115,21 +112,40 @@ if df_result is not None and not df_result.empty:
     st.dataframe(df_result, use_container_width=True)
     
     st.markdown("---")
-    st.subheader("💾 LƯU & XUẤT TỆP CHUẨN MICROSOFT OFFICE")
-    st.caption("Bấm nút bên dưới để tải file về máy, mở bằng Microsoft Excel cực kỳ mượt mà:")
+    st.subheader("💾 LƯU & XUẤT TỆP CHUẨN MICROSOFT OFFICE (CĂN GIỮA & CO GIÃN)")
+    st.caption("Khi mở file Excel tải về, toàn bộ dữ liệu trong ô sẽ tự động căn giữa và co giãn vừa khít nội dung:")
     
     col_x1, col_x2 = st.columns(2)
     
-    # 1. Xuất file Microsoft Excel (.xlsx)
+    # 1. Xuất file Microsoft Excel (.xlsx) với tính năng TỰ ĐỘNG CĂN GIỮA & CO GIÃN CỘT
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
         df_result.to_excel(writer, index=False, sheet_name='Du_Lieu_Chuan')
-    
+        
+        worksheet = writer.sheets['Du_Lieu_Chuan']
+        
+        # Thiết lập tự động canh giữa (Center Alignment) cho toàn bộ ô và co giãn cột
+        center_alignment = Alignment(horizontal='center', vertical='center')
+        
+        for col in worksheet.columns:
+            max_len = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                # Gán định dạng căn giữa cho từng ô
+                cell.alignment = center_alignment
+                try:
+                    if cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+                except:
+                    pass
+            # Đặt độ rộng cột vừa khít dữ liệu
+            worksheet.column_dimensions[col_letter].width = max(max_len + 6, 14)
+            
     with col_x1:
         st.download_button(
-            label="📊 Tải Xuất File Microsoft Excel (.xlsx)",
+            label="📊 Tải Xuất File Excel (Tự Động Căn Giữa & Co Giãn)",
             data=excel_buffer.getvalue(),
-            file_name="du_lieu_chuan_hoa.xlsx",
+            file_name="du_lieu_can_giua_co_gian.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             type="primary"
@@ -141,7 +157,7 @@ if df_result is not None and not df_result.empty:
         st.download_button(
             label="📄 Tải Xuất File CSV Chuẩn UTF-8 (.csv)",
             data=csv_bytes,
-            file_name="du_lieu_chuan_hoa.csv",
+            file_name="du_lieu_can_giua_co_gian.csv",
             mime="text/csv",
             use_container_width=True
         )
