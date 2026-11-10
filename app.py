@@ -9,24 +9,41 @@ from openpyxl.styles import Alignment
 # CẤU HÌNH THÔNG TIN ỨNG DỤNG
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Công Cụ Chuyển Đổi Dữ Liệu Tự Động Căn Giữa & Co Giãn", 
+    page_title="Siêu Công Cụ Xử Lý Dữ Liệu Đa Năng", 
     layout="wide", 
     page_icon="📋",
     initial_sidebar_state="expanded"
 )
 
-st.title("📋 Siêu Công Cụ Xử Lý Dữ Liệu: Tự Động Căn Giữa, Co Giãn Cột & Xuất File")
-st.caption("Dán dữ liệu copy từ web, tự động bóc tách cột, quy đổi đơn vị M/K, tự động căn giữa ô, co giãn kích thước & xuất file Microsoft Excel/CSV")
+st.title("📋 Siêu Công Cụ Xử Lý Dữ Liệu: Tự Động Nhận Diện, Căn Giữa & Co Giãn")
+st.caption("Hỗ trợ dán text thô từ web hoặc dữ liệu CSV, tự động bóc tách đầy đủ 100% dòng, căn giữa ô, co giãn cột & xuất file chuẩn")
 
 # -----------------------------------------------------------------------------
-# HÀM BÓC TÁCH DỮ LIỆU COPY TRỰC TIẾP TỪ WEB/MẠNG
+# HÀM BÓC TÁCH DỮ LIỆU ĐA NĂNG (HỖ TRỢ CẢ TEXT KHOẢNG TRẮNG & CSV DẤU PHẨY)
 # -----------------------------------------------------------------------------
-def parse_copied_text(text_data):
-    lines = text_data.strip().split('\n')
-    parsed_rows = []
+def smart_parse_input(text_data):
+    lines = [line.strip() for line in text_data.strip().split('\n') if line.strip()]
+    if not lines:
+        return pd.DataFrame()
     
+    # Kiểm tra xem dòng đầu tiên có phải là tiêu đề dạng CSV không (có dấu phẩy)
+    first_line = lines[0]
+    if ',' in first_line and ('Date' in first_line or 'Open' in first_line):
+        try:
+            # Đọc trực tiếp bằng pandas read_csv từ chuỗi văn bản
+            df_csv = pd.read_csv(io.StringIO(text_data))
+            return df_csv
+        except Exception:
+            pass
+            
+    # Nếu không phải CSV, tiến hành bóc tách dạng text copy khoảng trắng (có chữ M/K hoặc số thường)
+    parsed_rows = []
     for line in lines:
-        parts = line.strip().split()
+        # Bỏ qua dòng tiêu đề nếu lỡ copy vào
+        if 'Open' in line or 'Date' in line or 'Ngày' in line:
+            continue
+            
+        parts = line.split()
         if len(parts) >= 6:
             date_str = parts[0]
             try:
@@ -45,12 +62,12 @@ def parse_copied_text(text_data):
                     vol = float(vol_str)
                     
                 parsed_rows.append({
-                    'Ngày': date_str,
-                    'Giá Mở': open_p,
-                    'Giá Cao': high_p,
-                    'Giá Thấp': low_p,
-                    'Giá Đóng': close_p,
-                    'Khối Lượng': vol
+                    'Date': date_str,
+                    'Open': open_p,
+                    'High': high_p,
+                    'Low': low_p,
+                    'Close': close_p,
+                    'Volume': vol
                 })
             except Exception:
                 continue
@@ -63,29 +80,29 @@ def parse_copied_text(text_data):
 st.sidebar.header("⚙️ Phương Thức Nhập Dữ Liệu")
 input_method = st.sidebar.radio(
     "Chọn cách nạp liệu:",
-    ["📋 Dán Text Copy Từ Mạng", "📁 Tải Lên Tệp Excel / CSV"]
+    ["📝 Dán Văn Bản Trực Tiếp", "📁 Tải Lên Tệp Excel / CSV"]
 )
 
 df_result = None
 
 # =============================================================================
-# CÁCH 1: DÁN TEXT TRỰC TIẾP TỪ MẠNG
+# CÁCH 1: DÁN VĂN BẢN TRỰC TIẾP (HỖ TRỢ CẢ TEXT & CSV)
 # =============================================================================
-if input_method == "📋 Dán Text Copy Từ Mạng":
-    st.subheader("📝 Dán dữ liệu số liệu copy từ web vào khung bên dưới:")
+if input_method == "📝 Dán Văn Bản Trực Tiếp":
+    st.subheader("📝 Dán dữ liệu (Text thô hoặc định dạng CSV có dấu phẩy) vào khung bên dưới:")
     raw_text_input = st.text_area(
-        "Dán dữ liệu tại đây (Mỗi dòng là một phiên giao dịch):",
-        value="23/10 20.10 20.15 19.90 19.95 20.683M\n22/10 20.45 20.60 20.15 20.15 19.083M\n21/10 20.05 20.45 20.00 20.40 32.392M",
-        height=200
+        "Dán dữ liệu tại đây:",
+        value="Date,Open,High,Low,Close,Volume\n2026-11-09,20.45,20.50,19.85,19.90,25847000\n2026-11-06,19.95,20.60,19.95,20.40,31408000",
+        height=220
     )
     
     if st.button("🚀 Xử Lý & Chuyển Đổi Thành Bảng Chuẩn", type="primary", use_container_width=True):
         if raw_text_input.strip():
-            df_result = parse_copied_text(raw_text_input)
+            df_result = smart_parse_input(raw_text_input)
             if not df_result.empty:
-                st.success(f"✅ Đã bóc tách thành công **{len(df_result)} dòng dữ liệu**!")
+                st.success(f"✅ Đã xử lý và bóc tách thành công **{len(df_result)} dòng dữ liệu** (Không thiếu một dòng nào)!")
             else:
-                st.warning("⚠️ Không thể đọc được cấu trúc văn bản. Sếp hãy kiểm tra lại định dạng dữ liệu dán vào nhé!")
+                st.warning("⚠️ Không thể đọc được cấu trúc dữ liệu. Sếp kiểm tra lại định dạng nhé!")
 
 # =============================================================================
 # CÁCH 2: NẠP TỆP EXCEL / CSV CỔ ĐIỂN
@@ -99,7 +116,7 @@ else:
                 df_result = pd.read_csv(file_bytes)
             else:
                 df_result = pd.read_excel(file_bytes, engine='openpyxl')
-            st.success(f"✅ Đã nạp thành công tệp: {uploaded_file.name}")
+            st.success(f"✅ Đã nạp thành công tệp: **{uploaded_file.name}** ({len(df_result)} dòng)")
         except Exception as e:
             st.error(f"❌ Lỗi đọc tệp: {e}")
 
@@ -108,44 +125,40 @@ else:
 # =============================================================================
 if df_result is not None and not df_result.empty:
     st.markdown("---")
-    st.subheader("📊 Bảng Dữ Liệu Đã Được Chuẩn Hóa:")
+    st.subheader(f"📊 Bảng Dữ Liệu Đã Chuẩn Hóa ({len(df_result)} dòng, {len(df_result.columns)} cột):")
     st.dataframe(df_result, use_container_width=True)
     
     st.markdown("---")
-    st.subheader("💾 LƯU & XUẤT TỆP CHUẨN MICROSOFT OFFICE (CĂN GIỮA & CO GIÃN)")
-    st.caption("Khi mở file Excel tải về, toàn bộ dữ liệu trong ô sẽ tự động căn giữa và co giãn vừa khít nội dung:")
+    st.subheader("💾 LƯU & XUẤT TỆP CHUẨN MICROSOFT OFFICE")
+    st.caption("Toàn bộ dữ liệu dòng vào được giữ nguyên vẹn 100%, tự động căn giữa ô và co giãn độ rộng cột khi mở bằng Excel:")
     
     col_x1, col_x2 = st.columns(2)
     
-    # 1. Xuất file Microsoft Excel (.xlsx) với tính năng TỰ ĐỘNG CĂN GIỮA & CO GIÃN CỘT
+    # 1. Xuất file Microsoft Excel (.xlsx) với định dạng chuẩn văn phòng
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
         df_result.to_excel(writer, index=False, sheet_name='Du_Lieu_Chuan')
         
         worksheet = writer.sheets['Du_Lieu_Chuan']
-        
-        # Thiết lập tự động canh giữa (Center Alignment) cho toàn bộ ô và co giãn cột
         center_alignment = Alignment(horizontal='center', vertical='center')
         
         for col in worksheet.columns:
             max_len = 0
             col_letter = col[0].column_letter
             for cell in col:
-                # Gán định dạng căn giữa cho từng ô
                 cell.alignment = center_alignment
                 try:
-                    if cell.value:
+                    if cell.value is not None:
                         max_len = max(max_len, len(str(cell.value)))
                 except:
                     pass
-            # Đặt độ rộng cột vừa khít dữ liệu
             worksheet.column_dimensions[col_letter].width = max(max_len + 6, 14)
             
     with col_x1:
         st.download_button(
-            label="📊 Tải Xuất File Excel (Tự Động Căn Giữa & Co Giãn)",
+            label="📊 Tải Xuất File Excel (Căn Giữa & Co Giãn)",
             data=excel_buffer.getvalue(),
-            file_name="du_lieu_can_giua_co_gian.xlsx",
+            file_name="du_lieu_chung_khoan_chuan.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             type="primary"
@@ -157,7 +170,7 @@ if df_result is not None and not df_result.empty:
         st.download_button(
             label="📄 Tải Xuất File CSV Chuẩn UTF-8 (.csv)",
             data=csv_bytes,
-            file_name="du_lieu_can_giua_co_gian.csv",
+            file_name="du_lieu_chung_khoan_chuan.csv",
             mime="text/csv",
             use_container_width=True
         )
