@@ -77,7 +77,7 @@ st.title("💼 Microsoft Office & Math Suite Pro (All-In-One)")
 st.caption("Mô phỏng trọn vẹn không gian làm việc chuẩn Microsoft Office: Word, Excel, Math Studio & Document Center")
 
 # -----------------------------------------------------------------------------
-# 2. HÀM BÓC TÁCH DỮ LIỆU EXCEL
+# 2. HÀM BÓC TÁCH DỮ LIỆU EXCEL ĐA NĂNG
 # -----------------------------------------------------------------------------
 def smart_parse_input(text_data):
     lines = [line.strip() for line in text_data.strip().split('\n') if line.strip()]
@@ -117,7 +117,7 @@ def smart_parse_input(text_data):
     return pd.DataFrame(parsed_rows)
 
 # -----------------------------------------------------------------------------
-# 3. THANH ĐIỀU HƯỚNG SIDEBAR (ỨNG DỤNG OFFICE)
+# 3. THANH ĐIỀU HƯỚNG SIDEBAR (BỘ ỨNG DỤNG OFFICE)
 # -----------------------------------------------------------------------------
 st.sidebar.header("📁 Bộ Ứng Dụng Microsoft Office")
 app_module = st.sidebar.radio(
@@ -131,7 +131,6 @@ app_module = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **Trạng thái:** Các tính năng hoạt động thực tế 100%, không dùng nút giả.")
 
 # =============================================================================
 # 1. MICROSOFT EXCEL (BẢNG TÍNH & PHÂN TÍCH CHUYÊN NGHIỆP)
@@ -139,12 +138,11 @@ st.sidebar.info("💡 **Trạng thái:** Các tính năng hoạt động thực 
 if app_module.startswith("🟢 Microsoft Excel"):
     st.subheader("🟢 Microsoft Excel - Bảng Tính Chuyên Nghiệp")
     
-    # Thanh Ribbon giả lập giao diện Microsoft Excel thật
     st.markdown("""
         <div class="office-ribbon">
             <div class="ribbon-group">
                 <span class="ribbon-title">Bảng Dữ Liệu</span>
-                <span><b>Trạng thái:</b> Sẵn sàng tính toán</span>
+                <span><b>Trạng thái:</b> Sẵn sàng nạp liệu & tính toán</span>
             </div>
             <div class="ribbon-group">
                 <span class="ribbon-title">Định Dạng Ô</span>
@@ -157,21 +155,43 @@ if app_module.startswith("🟢 Microsoft Excel"):
         </div>
     """, unsafe_allow_html=True)
 
+    # KHUNG NẠP DỮ LIỆU EXCEL Ở SIDEBAR
     st.sidebar.header("⚙️ Nạp Dữ Liệu Excel")
-    input_method = st.sidebar.radio("Chọn nguồn nạp:", ["📝 Dán Dữ Liệu Thô / CSV", "📁 Tải Lên Tệp (.xlsx / .csv)"])
+    input_method = st.sidebar.radio(
+        "Chọn nguồn nạp liệu:", 
+        ["📝 Dán Dữ Liệu Thô / CSV", "📁 Tải Lên Tệp (.xlsx / .csv)"]
+    )
 
     df_excel = None
     if input_method == "📝 Dán Dữ Liệu Thô / CSV":
-        raw_txt = st.sidebar.text_area("Dán dữ liệu tại đây:", value="Date,Open,High,Low,Close,Volume\n2026-11-09,20.45,20.50,19.85,19.90,25847000", height=180)
-        if st.sidebar.button("🚀 Nạp Dữ Liệu Vào Bảng", type="primary"):
+        raw_txt = st.sidebar.text_area(
+            "Dán dữ liệu tại đây:", 
+            value="Date,Open,High,Low,Close,Volume\n2026-11-09,20.45,20.50,19.85,19.90,25847000\n2026-11-06,19.95,20.60,19.95,20.40,31408000", 
+            height=200
+        )
+        if st.sidebar.button("🚀 Nạp Dữ Liệu Vào Bảng", type="primary", use_container_width=True):
             if raw_txt.strip():
-                st.session_state['excel_data'] = smart_parse_input(raw_txt)
+                df_parsed = smart_parse_input(raw_txt)
+                if not df_parsed.empty:
+                    st.session_state['excel_data'] = df_parsed
+                    st.sidebar.success(f"✅ Đã nạp thành công {len(df_parsed)} dòng!")
+                else:
+                    st.sidebar.error("❌ Không thể đọc cấu trúc dữ liệu.")
     else:
-        uploaded_f = st.sidebar.file_uploader("Chọn tệp:", type=["xlsx", "xls", "csv"])
+        uploaded_f = st.sidebar.file_uploader("Chọn tệp Excel hoặc CSV:", type=["xlsx", "xls", "csv"])
         if uploaded_f is not None:
-            b_io = io.BytesIO(uploaded_f.getvalue())
-            st.session_state['excel_data'] = pd.read_csv(b_io) if uploaded_f.name.endswith('.csv') else pd.read_excel(b_io)
+            try:
+                b_io = io.BytesIO(uploaded_f.getvalue())
+                if uploaded_f.name.lower().endswith('.csv'):
+                    df_parsed = pd.read_csv(b_io)
+                else:
+                    df_parsed = pd.read_excel(b_io, engine='openpyxl')
+                st.session_state['excel_data'] = df_parsed
+                st.sidebar.success(f"✅ Đã nạp tệp: {uploaded_f.name} ({len(df_parsed)} dòng)")
+            except Exception as e:
+                st.sidebar.error(f"❌ Lỗi đọc tệp: {e}")
 
+    # Lấy dữ liệu từ session state nếu có
     if 'excel_data' in st.session_state:
         df_excel = st.session_state['excel_data']
 
@@ -179,7 +199,7 @@ if app_module.startswith("🟢 Microsoft Excel"):
         ex_tab1, ex_tab2, ex_tab3 = st.tabs(["📊 Trang Tính (Grid)", "📈 Biểu Đồ Phân Tích", "💾 Lưu & Xuất File"])
 
         with ex_tab1:
-            st.caption("Nhấp đôi vào ô bất kỳ để chỉnh sửa dữ liệu trực tiếp như trên Excel:")
+            st.caption("💡 Nhấp đôi vào ô bất kỳ để chỉnh sửa dữ liệu trực tiếp như trên Excel:")
             edited_table = st.data_editor(df_excel, num_rows="dynamic", use_container_width=True)
             st.session_state['excel_data'] = edited_table
 
@@ -230,7 +250,7 @@ if app_module.startswith("🟢 Microsoft Excel"):
                 use_container_width=True
             )
     else:
-        st.info("👈 Hãy nạp dữ liệu từ thanh bên (Sidebar) để bắt đầu sử dụng bảng tính Excel.")
+        st.info("👈 Sếp hãy nhìn sang **Thanh bên (Sidebar) bên trái**, chọn phương thức dán văn bản hoặc tải file lên rồi bấm nút **Nạp Dữ Liệu** để hiển thị bảng tính nhé!")
 
 # =============================================================================
 # 2. MICROSOFT WORD (SOẠN THẢO VĂN BẢN)
