@@ -17,7 +17,6 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Ép font chữ sang màu đen đậm, sắc nét tuyệt đối */
     .stApp { background-color: #f3f4f6; color: #111827 !important; }
     p, span, label, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #111827 !important;
@@ -30,8 +29,6 @@ st.markdown("""
     div[data-testid="stMetricValue"], div[data-testid="stMetricLabel"] {
         color: #111827 !important;
     }
-    
-    /* Giao diện thanh Ribbon phong cách Microsoft Office */
     .office-ribbon {
         background-color: #ffffff;
         border: 1px solid #cbd5e1;
@@ -43,21 +40,6 @@ st.markdown("""
         gap: 15px;
         align-items: center;
     }
-    .ribbon-group {
-        border-right: 1px solid #e2e8f0;
-        padding-right: 15px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-    .ribbon-title {
-        font-size: 11px;
-        font-weight: 700;
-        color: #64748b !important;
-        text-transform: uppercase;
-    }
-
-    /* Tùy chỉnh Tab */
     .stTabs [data-baseweb="tab"] {
         background-color: #ffffff;
         border-radius: 6px 6px 0 0;
@@ -67,7 +49,7 @@ st.markdown("""
         border: 1px solid #cbd5e1;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #1b5e20 !important; /* Màu xanh lá đặc trưng Microsoft Excel */
+        background-color: #1b5e20 !important;
         color: #ffffff !important;
     }
     </style>
@@ -117,7 +99,7 @@ def smart_parse_input(text_data):
     return pd.DataFrame(parsed_rows)
 
 # -----------------------------------------------------------------------------
-# 3. THANH ĐIỀU HƯỚNG SIDEBAR (BỘ ỨNG DỤNG OFFICE)
+# 3. ĐIỀU HƯỚNG CHÍNH (SIDEBAR)
 # -----------------------------------------------------------------------------
 st.sidebar.header("📁 Bộ Ứng Dụng Microsoft Office")
 app_module = st.sidebar.radio(
@@ -130,72 +112,52 @@ app_module = st.sidebar.radio(
     ]
 )
 
-st.sidebar.markdown("---")
-
 # =============================================================================
 # 1. MICROSOFT EXCEL (BẢNG TÍNH & PHÂN TÍCH CHUYÊN NGHIỆP)
 # =============================================================================
 if app_module.startswith("🟢 Microsoft Excel"):
     st.subheader("🟢 Microsoft Excel - Bảng Tính Chuyên Nghiệp")
-    
-    st.markdown("""
-        <div class="office-ribbon">
-            <div class="ribbon-group">
-                <span class="ribbon-title">Bảng Dữ Liệu</span>
-                <span><b>Trạng thái:</b> Sẵn sàng nạp liệu & tính toán</span>
-            </div>
-            <div class="ribbon-group">
-                <span class="ribbon-title">Định Dạng Ô</span>
-                <span>Căn giữa | Co giãn cột | Viền tự động</span>
-            </div>
-            <div class="ribbon-group">
-                <span class="ribbon-title">Xuất Tệp</span>
-                <span>Hỗ trợ .XLSX và .CSV</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
 
-    # KHUNG NẠP DỮ LIỆU EXCEL Ở SIDEBAR
-    st.sidebar.header("⚙️ Nạp Dữ Liệu Excel")
-    input_method = st.sidebar.radio(
-        "Chọn nguồn nạp liệu:", 
-        ["📝 Dán Dữ Liệu Thô / CSV", "📁 Tải Lên Tệp (.xlsx / .csv)"]
-    )
-
-    df_excel = None
-    if input_method == "📝 Dán Dữ Liệu Thô / CSV":
-        raw_txt = st.sidebar.text_area(
-            "Dán dữ liệu tại đây:", 
-            value="Date,Open,High,Low,Close,Volume\n2026-11-09,20.45,20.50,19.85,19.90,25847000\n2026-11-06,19.95,20.60,19.95,20.40,31408000", 
-            height=200
-        )
-        if st.sidebar.button("🚀 Nạp Dữ Liệu Vào Bảng", type="primary", use_container_width=True):
-            if raw_txt.strip():
-                df_parsed = smart_parse_input(raw_txt)
-                if not df_parsed.empty:
+    # KHUNG NẠP DỮ LIỆU ĐẶT TRỰC TIẾP TRÊN MÀN HÌNH CHÍNH (RẤT DỄ THẤY)
+    with st.expander("📥 MỞ KHUNG NẠP DỮ LIỆU (Tải file hoặc Dán văn bản)", expanded=True):
+        col_n1, col_n2 = st.columns(2)
+        
+        with col_n1:
+            st.write("##### 📁 Cách 1: Tải lên tệp Excel / CSV")
+            uploaded_f = st.file_uploader("Chọn tệp từ máy tính:", type=["xlsx", "xls", "csv"])
+            if uploaded_f is not None:
+                try:
+                    b_io = io.BytesIO(uploaded_f.getvalue())
+                    df_parsed = pd.read_csv(b_io) if uploaded_f.name.lower().endswith('.csv') else pd.read_excel(b_io, engine='openpyxl')
                     st.session_state['excel_data'] = df_parsed
-                    st.sidebar.success(f"✅ Đã nạp thành công {len(df_parsed)} dòng!")
-                else:
-                    st.sidebar.error("❌ Không thể đọc cấu trúc dữ liệu.")
-    else:
-        uploaded_f = st.sidebar.file_uploader("Chọn tệp Excel hoặc CSV:", type=["xlsx", "xls", "csv"])
-        if uploaded_f is not None:
-            try:
-                b_io = io.BytesIO(uploaded_f.getvalue())
-                if uploaded_f.name.lower().endswith('.csv'):
-                    df_parsed = pd.read_csv(b_io)
-                else:
-                    df_parsed = pd.read_excel(b_io, engine='openpyxl')
-                st.session_state['excel_data'] = df_parsed
-                st.sidebar.success(f"✅ Đã nạp tệp: {uploaded_f.name} ({len(df_parsed)} dòng)")
-            except Exception as e:
-                st.sidebar.error(f"❌ Lỗi đọc tệp: {e}")
+                    st.success(f"✅ Nạp thành công tệp: {uploaded_f.name} ({len(df_parsed)} dòng)")
+                except Exception as e:
+                    st.error(f"❌ Lỗi đọc tệp: {e}")
+
+        with col_n2:
+            st.write("##### 📝 Cách 2: Dán văn bản thô / CSV trực tiếp")
+            raw_txt = st.text_area(
+                "Dán dữ liệu tại đây:", 
+                value="Date,Open,High,Low,Close,Volume\n2026-11-09,20.45,20.50,19.85,19.90,25847000\n2026-11-06,19.95,20.60,19.95,20.40,31408000", 
+                height=100
+            )
+            if st.button("🚀 Xử Lý & Nạp Dữ Liệu Này", type="primary"):
+                if raw_txt.strip():
+                    df_parsed = smart_parse_input(raw_txt)
+                    if not df_parsed.empty:
+                        st.session_state['excel_data'] = df_parsed
+                        st.success(f"✅ Đã nạp thành công {len(df_parsed)} dòng!")
+                    else:
+                        st.error("❌ Không thể đọc cấu trúc dữ liệu.")
 
     # Lấy dữ liệu từ session state nếu có
     if 'excel_data' in st.session_state:
         df_excel = st.session_state['excel_data']
+    else:
+        df_excel = None
 
     if df_excel is not None and not df_excel.empty:
+        st.markdown("---")
         ex_tab1, ex_tab2, ex_tab3 = st.tabs(["📊 Trang Tính (Grid)", "📈 Biểu Đồ Phân Tích", "💾 Lưu & Xuất File"])
 
         with ex_tab1:
@@ -250,7 +212,7 @@ if app_module.startswith("🟢 Microsoft Excel"):
                 use_container_width=True
             )
     else:
-        st.info("👈 Sếp hãy nhìn sang **Thanh bên (Sidebar) bên trái**, chọn phương thức dán văn bản hoặc tải file lên rồi bấm nút **Nạp Dữ Liệu** để hiển thị bảng tính nhé!")
+        st.info("👆 Sếp hãy bấm mở khung **'MỞ KHUNG NẠP DỮ LIỆU'** phía trên để tải file hoặc dán dữ liệu vào bảng tính nhé!")
 
 # =============================================================================
 # 2. MICROSOFT WORD (SOẠN THẢO VĂN BẢN)
@@ -258,19 +220,6 @@ if app_module.startswith("🟢 Microsoft Excel"):
 elif app_module.startswith("🔵 Microsoft Word"):
     st.subheader("🔵 Microsoft Word - Soạn Thảo Văn Bản Hành Chính")
     
-    st.markdown("""
-        <div class="office-ribbon">
-            <div class="ribbon-group">
-                <span class="ribbon-title">Trang Chủ</span>
-                <span>Font: Calibri | Cỡ chữ: 12pt | Căn lề đều</span>
-            </div>
-            <div class="ribbon-group">
-                <span class="ribbon-title">Công Cụ</span>
-                <span>Đếm từ | Kiểm tra định dạng | Chèn mẫu chuẩn</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
     if 'w_title' not in st.session_state: st.session_state['w_title'] = "BÁO CÁO CÔNG TÁC"
     if 'w_content' not in st.session_state: st.session_state['w_content'] = "Kính gửi Ban Giám Đốc,\n\nNội dung báo cáo chi tiết..."
 
@@ -295,7 +244,6 @@ elif app_module.startswith("🔵 Microsoft Word"):
 elif app_module.startswith("🧮 Math Studio"):
     st.subheader("🧮 Math Studio - Trạm Tính Toán & Đồ Thị Khoa Học")
     
-    st.write("##### 📈 Khảo Sát & Vẽ Đồ Thị Hàm Số:")
     c1, c2 = st.columns(2)
     with c1:
         deg = st.selectbox("Chọn hàm số:", ["Đa thức bậc 2: y = ax² + bx + c", "Đa thức bậc 3: y = ax³ + bx² + cx + d"])
